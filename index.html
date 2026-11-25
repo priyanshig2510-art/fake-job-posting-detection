@@ -3,921 +3,454 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Job posting checker</title>
+<title>JobShield AI — Fake Job Posting Detection</title>
+<meta name="description" content="Machine-learning powered detection of fraudulent job postings.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #eeeef8;
-    --surface: #ffffff;
-    --surface-2: #f5f5fc;
-    --ink: #1b1a38;
-    --muted: #5f5c85;
-    --line: #dddbf1;
-    --accent: #4a3fe0;
-    --accent-2: #7a4df0;
-    --accent-ink: #ffffff;
-    --safe: #0c8a69;
-    --warn: #c27400;
-    --risk: #d4244d;
-    --mark: #ffe066;
-    --mark-ink: #3a2f00;
-    --track: #e4e2f4;
-    --shadow: 0 24px 48px -30px rgba(40, 30, 120, .5);
-    --band-a: #17154a;
-    --band-b: #2d2290;
-    --display: "Bricolage Grotesque", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-    --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  }
-  :root[data-theme="dark"] {
-    --bg: #0c0b1c; --surface: #16152f; --surface-2: #1d1c3c; --ink: #ecebff; --muted: #a3a0cc;
-    --line: #2c2a54; --accent: #9087ff; --accent-2: #b08bff; --accent-ink: #110f2b;
-    --safe: #3fd0a6; --warn: #f0b54a; --risk: #ff6b8c; --mark: #5e4f00; --mark-ink: #fff2a8;
-    --track: #29274f; --shadow: 0 24px 48px -30px rgba(0, 0, 0, .85); --band-a: #0f0e32; --band-b: #231b66;
-  }
+:root{
+  --bg:#06070b; --bg-2:#0b0d14; --surface:rgba(255,255,255,.035); --surface-2:rgba(255,255,255,.06);
+  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  --text:#eceef5; --muted:#8b90a3; --dim:#5b6075;
+  --a1:#7c6cff; --a2:#22d3ee; --grad:linear-gradient(120deg,var(--a1),var(--a2));
+  --ok:#34e3a8; --bad:#ff5471; --warn:#ffb547;
+  --r:18px; --ease:cubic-bezier(.2,.8,.2,1);
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --head:'Inter Tight','Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-2;
+  background:
+   radial-gradient(900px 500px at 15% -5%,rgba(124,108,255,.18),transparent 60%),
+   radial-gradient(800px 500px at 90% 5%,rgba(34,211,238,.12),transparent 60%),var(--bg)}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:64px 64px;opacity:.35;
+  mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,#000 30%,transparent 80%);
+  -webkit-mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,#000 30%,transparent 80%)}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+.mono{font-family:var(--mono)}
+a{color:inherit;text-decoration:none}
 
-  * { box-sizing: border-box; }
-  html { color-scheme: light; }
-  :root[data-theme="dark"] { color-scheme: dark; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+/* Nav */
+nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgba(6,7,11,.65);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px}
+.brand{display:flex;align-items:center;gap:10px;font:700 18px var(--head);letter-spacing:-.02em}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center;box-shadow:0 0 24px rgba(124,108,255,.5)}
+.logo svg{width:17px;height:17px}
+.nav-links{display:flex;gap:30px;font-size:14px;color:var(--muted)}
+.nav-links a{transition:color .2s}.nav-links a:hover{color:var(--text)}
+.status{display:flex;align-items:center;gap:8px;font:500 12px var(--mono);color:var(--muted);padding:7px 12px;border:1px solid var(--line);border-radius:99px;background:var(--surface)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(52,227,168,.6);animation:pulse 2s infinite}
+.dot.off{background:var(--bad);animation:none}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(52,227,168,0)}100%{box-shadow:0 0 0 0 rgba(52,227,168,0)}}
 
-  .i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+/* Hero */
+.hero{padding:110px 0 70px;text-align:center;position:relative}
+.pill{display:inline-flex;align-items:center;gap:8px;font:500 12px var(--mono);letter-spacing:.04em;color:#c9ccff;padding:7px 14px;border-radius:99px;border:1px solid rgba(124,108,255,.35);background:rgba(124,108,255,.1)}
+h1{font:800 clamp(40px,7vw,78px)/1.02 var(--head);letter-spacing:-.045em;margin:26px auto 22px;max-width:900px}
+.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:shift 8s ease-in-out infinite alternate}
+@keyframes shift{to{background-position:100% 0}}
+.hero p.lead{max-width:640px;margin:0 auto 38px;color:var(--muted);font-size:18px}
+.cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 15px var(--font);border:0;cursor:pointer;border-radius:12px;padding:14px 26px;transition:transform .25s var(--ease),box-shadow .25s,background .25s;color:#fff}
+.btn-primary{background:var(--grad);box-shadow:0 8px 30px -8px rgba(124,108,255,.7),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 40px -8px rgba(124,108,255,.85),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn-ghost{background:var(--surface);border:1px solid var(--line-2)}
+.btn-ghost:hover{background:var(--surface-2);transform:translateY(-2px)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:80px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.stat{background:var(--bg-2);padding:26px 18px}
+.stat b{display:block;font:700 34px var(--head);letter-spacing:-.03em}
+.stat span{font-size:13px;color:var(--muted)}
 
-  /* hero band */
-  .band { position: relative; overflow: hidden; color: #fff; padding: 22px 0 132px; background: linear-gradient(135deg, var(--band-a), var(--band-b) 60%, #4a3fe0); }
-  .band::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.16) 1px, transparent 1.5px); background-size: 24px 24px; -webkit-mask-image: linear-gradient(180deg, #000 10%, transparent 90%); mask-image: linear-gradient(180deg, #000 10%, transparent 90%); }
-  .band::after { content: ""; position: absolute; width: 640px; height: 640px; right: -160px; top: -300px; border-radius: 50%; background: radial-gradient(circle, rgba(176, 139, 255, .55), transparent 65%); }
-  .band .wrap { position: relative; z-index: 1; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 44px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 18px; }
-  .brand .logo { width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28); display: grid; place-items: center; font-size: 20px; }
-  .theme-btn { color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 7px 14px; font: 500 14px var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
-  .theme-btn:hover { background: rgba(255,255,255,.2); }
-  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(36px, 5.6vw, 62px); line-height: 1.03; letter-spacing: -0.028em; margin: 0 0 16px; max-width: 14ch; }
-  .lead { margin: 0 0 24px; font-size: 18px; color: rgba(255,255,255,.8); max-width: 54ch; }
-  .perks { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
-  .perks li { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); }
+/* Sections */
+section{padding:80px 0}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--a2)}
+h2{font:700 clamp(28px,4vw,42px)/1.12 var(--head);letter-spacing:-.035em;margin:12px 0 14px}
+.sub{color:var(--muted);max-width:560px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px;position:relative;transition:border-color .3s,transform .3s var(--ease),background .3s}
+.card:hover{border-color:var(--line-2);transform:translateY(-4px);background:var(--surface-2)}
+.card .n{font:500 12px var(--mono);color:var(--dim)}
+.card .ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin:16px 0;background:rgba(124,108,255,.12);border:1px solid rgba(124,108,255,.3);color:#b9b1ff}
+.card h3{font:600 18px var(--head);margin-bottom:8px;letter-spacing:-.01em}
+.card p{font-size:14.5px;color:var(--muted)}
 
-  .main { position: relative; z-index: 2; margin-top: -84px; padding-bottom: 72px; }
-  .layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 24px; align-items: start; }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .main { margin-top: -64px; } }
+/* Analyzer */
+.panel{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid var(--line-2);border-radius:24px;padding:36px;box-shadow:0 40px 80px -40px rgba(0,0,0,.8);position:relative}
+.panel::before{content:"";position:absolute;inset:-1px;border-radius:24px;padding:1px;background:linear-gradient(140deg,rgba(124,108,255,.5),transparent 35%,transparent 65%,rgba(34,211,238,.4));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:30px}
+.samples{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.chip{font:500 12.5px var(--font);color:var(--text);background:var(--surface);border:1px solid var(--line-2);border-radius:99px;padding:7px 14px;cursor:pointer;transition:all .2s}
+.chip:hover{border-color:var(--a1);background:rgba(124,108,255,.12)}
+form{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.full{grid-column:1/-1}
+.field label{display:flex;justify-content:space-between;font:500 13px var(--font);color:#c3c7d8;margin-bottom:8px}
+.field label .opt{font:400 11.5px var(--mono);color:var(--dim)}
+.field label .cnt{font:400 11.5px var(--mono);color:var(--dim)}
+.req{color:var(--bad)}
+input[type=text],textarea,select{width:100%;font:400 14.5px var(--font);color:var(--text);background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:12px;padding:13px 15px;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
+textarea{resize:vertical;min-height:120px;line-height:1.55}
+select{appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%238b90a3' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+select option{background:#12141c}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+input:focus,textarea:focus,select:focus{border-color:var(--a1);box-shadow:0 0 0 4px rgba(124,108,255,.18);background:rgba(0,0,0,.5)}
+.field.err input,.field.err textarea{border-color:var(--bad);box-shadow:0 0 0 4px rgba(255,84,113,.12)}
+.msg{display:none;margin-top:7px;font-size:12.5px;color:var(--bad)}
+.field.err .msg{display:block;animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--line-2);border-radius:12px;background:rgba(0,0,0,.25);cursor:pointer;transition:border-color .2s,background .2s;user-select:none}
+.toggle:hover{border-color:var(--line-2);background:rgba(255,255,255,.04)}
+.toggle:has(input:checked){border-color:rgba(124,108,255,.55);background:rgba(124,108,255,.08)}
+.toggle strong{display:block;font:500 13.5px var(--font)}.toggle small{color:var(--muted);font-size:12px}
+.toggle input{display:none}
+.sw{flex:none;width:40px;height:22px;border-radius:99px;background:rgba(255,255,255,.12);position:relative;transition:background .25s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .3s var(--ease)}
+.toggle input:checked + .sw{background:var(--grad)}
+.toggle input:checked + .sw::after{transform:translateX(18px)}
+.actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:6px}
+.analyze{flex:1;min-width:240px;padding:18px 30px;font-size:16px;position:relative;overflow:hidden}
+.analyze::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .8s}
+.analyze:hover::after{transform:translateX(120%)}
+.analyze:disabled{opacity:.7;cursor:progress;transform:none}
+.spinner{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite;display:none}
+.loading .spinner{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note{font-size:12.5px;color:var(--dim)}
+.alert{display:none;grid-column:1/-1;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:rgba(255,84,113,.09);border:1px solid rgba(255,84,113,.35);color:#ffb3c0;font-size:14px}
+.alert.show{display:flex;animation:rise .4s var(--ease)}
+.alert svg{flex:none;margin-top:2px}
 
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 26px; box-shadow: var(--shadow); animation: rise .6s cubic-bezier(.2,.8,.2,1) both; }
-  .layout > .card { animation-delay: .05s; } .side > :nth-child(1) { animation-delay: .12s; } .side > :nth-child(2) { animation-delay: .2s; } .side > :nth-child(3) { animation-delay: .28s; }
-  @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
-  .card-title { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; }
-  .card-title h2 { font-family: var(--display); font-size: 20px; line-height: 1.2; margin: 0; letter-spacing: -0.01em; }
-  .card-title small { display: block; font: 400 13px var(--sans); color: var(--muted); margin-top: 1px; }
-  .ico { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-  .card-title .count { margin-left: auto; }
+/* Loading scan */
+.scan{display:none;margin-top:28px;padding:26px;border:1px solid var(--line);border-radius:16px;background:rgba(0,0,0,.3);position:relative;overflow:hidden}
+.scan.show{display:block;animation:rise .4s var(--ease)}
+.scan::before{content:"";position:absolute;left:0;right:0;height:80px;top:-80px;background:linear-gradient(180deg,transparent,rgba(34,211,238,.18),transparent);animation:sweep 1.6s linear infinite}
+@keyframes sweep{to{top:100%}}
+.scan .bars{display:flex;gap:6px;height:36px;align-items:flex-end;margin-bottom:16px}
+.scan .bars i{flex:1;background:var(--grad);border-radius:3px;opacity:.7;animation:eq 1s ease-in-out infinite}
+@keyframes eq{0%,100%{height:20%}50%{height:100%}}
+.scan p{font:500 13px var(--mono);color:var(--a2)}
 
-  /* segmented tabs */
-  .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 20px; }
-  .seg button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--sans); padding: 8px 14px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
-  .seg button:hover { color: var(--ink); }
-  .seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(20, 10, 80, .18), 0 0 0 1px var(--line); }
-  .badge { background: var(--risk); color: #fff; border-radius: 999px; font-size: 12px; line-height: 18px; min-width: 18px; padding: 0 6px; text-align: center; }
+/* Result */
+#result{display:none;margin-top:30px}
+#result.show{display:block;animation:rise .6s var(--ease)}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.res{display:grid;grid-template-columns:320px 1fr;gap:34px;align-items:center;padding:34px;border-radius:20px;border:1px solid var(--tone-b);background:radial-gradient(500px 300px at 0% 0%,var(--tone-g),transparent 70%),rgba(0,0,0,.3)}
+.res.fake{--tone:var(--bad);--tone-b:rgba(255,84,113,.4);--tone-g:rgba(255,84,113,.16)}
+.res.real{--tone:var(--ok);--tone-b:rgba(52,227,168,.4);--tone-g:rgba(52,227,168,.14)}
+.gauge{position:relative;width:240px;height:240px;margin:auto}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.gauge .trk{fill:none;stroke:rgba(255,255,255,.08);stroke-width:12}
+.gauge .val{fill:none;stroke:var(--tone);stroke-width:12;stroke-linecap:round;stroke-dasharray:597;stroke-dashoffset:597;filter:drop-shadow(0 0 10px var(--tone));transition:stroke-dashoffset 1.4s var(--ease)}
+.gauge .mid{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge .mid b{font:800 54px var(--head);letter-spacing:-.04em;line-height:1}
+.gauge .mid span{font:500 11.5px var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:8px}
+.verdict{display:inline-flex;align-items:center;gap:9px;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--tone);padding:7px 14px;border-radius:99px;background:var(--tone-g);border:1px solid var(--tone-b)}
+.res h3{font:800 clamp(34px,5vw,52px)/1.05 var(--head);letter-spacing:-.04em;margin:18px 0 12px;color:var(--tone)}
+.res .why{color:#b6bace;font-size:15.5px;max-width:520px}
+.meter{margin:26px 0 8px;height:8px;border-radius:99px;background:linear-gradient(90deg,var(--ok),var(--warn),var(--bad));position:relative;opacity:.9}
+.meter i{position:absolute;top:50%;left:0;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--bg);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--tone),0 0 16px var(--tone);transition:left 1.4s var(--ease)}
+.scale{display:flex;justify-content:space-between;font:400 11px var(--mono);color:var(--dim)}
+.signals{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.sig{display:inline-flex;gap:7px;align-items:center;font-size:12.5px;padding:6px 12px;border-radius:99px;border:1px solid var(--line-2);background:var(--surface);color:#c3c7d8}
+.sig.warn{border-color:rgba(255,181,71,.4);color:#ffd18a;background:rgba(255,181,71,.07)}
+.sig.good{border-color:rgba(52,227,168,.3);color:#9df0cf;background:rgba(52,227,168,.06)}
+.disc{margin-top:16px;font-size:12px;color:var(--dim);text-align:center}
 
-  /* fields */
-  .field { margin-bottom: 18px; }
-  label, .legend { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
-  .hint { font-weight: 400; color: var(--muted); }
-  .req { color: var(--risk); }
-  .counter { float: right; font-weight: 400; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-  input[type="text"], textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; transition: border-color .15s, background .15s, box-shadow .15s; }
-  textarea { resize: vertical; min-height: 92px; }
-  #paste { min-height: 250px; }
-  input[type="text"]:hover, textarea:hover, select:hover { border-color: var(--muted); }
-  input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
-  button:focus-visible, mark:focus-visible, .switch input:focus-visible + .track, .live input:focus-visible + .track, .theme-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  .invalid { border-color: var(--risk) !important; }
-  .error-text { color: var(--risk); font-size: 13px; margin-top: 5px; }
+/* Footer */
+footer{border-top:1px solid var(--line);padding:36px 0;color:var(--dim);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
 
-  .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-  @media (max-width: 640px) { .row3 { grid-template-columns: 1fr; } }
-  .details { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 20px; }
-  .switches { display: grid; gap: 10px; }
-  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; margin: 0; background: var(--surface-2); transition: border-color .15s; }
-  .switch:hover { border-color: var(--muted); }
-  .switch .text { font-weight: 500; font-size: 15px; }
-  .switch input, .live input { position: absolute; opacity: 0; width: 0; height: 0; }
-  .track { flex: none; width: 44px; height: 26px; border-radius: 13px; background: var(--track); position: relative; transition: background .18s; }
-  .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .18s cubic-bezier(.3,1.4,.5,1); }
-  input:checked + .track { background: var(--accent); }
-  input:checked + .track::after { transform: translateX(18px); }
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.in{opacity:1;transform:none}
 
-  .meter-row { display: flex; align-items: center; gap: 12px; margin: 22px 0 20px; }
-  .meter { flex: none; width: 120px; height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
-  .meter span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; transition: width .35s cubic-bezier(.3,1.2,.5,1); }
-  .meter-text { font-size: 13px; color: var(--muted); }
-
-  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .btn { font: 600 15px var(--sans); cursor: pointer; border-radius: 12px; padding: 12px 20px; border: 1px solid var(--line); background: transparent; color: var(--ink); transition: transform .08s, filter .15s, background .15s, box-shadow .15s; display: inline-flex; align-items: center; gap: 8px; }
-  .btn:active:not(:disabled) { transform: translateY(1px); }
-  .btn.primary { color: var(--accent-ink); border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--accent) 80%, transparent); }
-  .btn.primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 14px 26px -10px color-mix(in srgb, var(--accent) 90%, transparent); }
-  :root:not([data-theme="dark"]) .btn.primary { color: #fff; }
-  .btn.primary:disabled { opacity: .65; cursor: progress; }
-  .btn.quiet { color: var(--muted); font-weight: 500; }
-  .btn.quiet:hover { background: var(--surface-2); }
-  .btn.small { padding: 6px 13px; font-size: 14px; border-radius: 999px; font-weight: 500; }
-  .live { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 0; }
-  .examples { margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line); font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  kbd { font: inherit; font-size: 12px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
-
-  /* marked-up paper */
-  .paper { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 28px 30px; min-height: 300px; box-shadow: 0 1px 0 var(--line), 0 16px 28px -22px rgba(20, 10, 80, .6); font-family: ui-serif, Georgia, "Times New Roman", serif; line-height: 1.7; font-size: 16.5px; }
-  .paper h3 { font-family: var(--display); font-size: 26px; line-height: 1.2; margin: 0 0 14px; letter-spacing: -0.01em; }
-  .paper h4 { font: 600 13px var(--sans); color: var(--muted); margin: 20px 0 4px; }
-  .paper p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .paper .empty { color: var(--muted); font-family: var(--sans); }
-  mark { position: relative; background: var(--mark); color: var(--mark-ink); border-radius: 4px; padding: 1px 3px; margin: 0 -1px; border-bottom: 2px solid var(--risk); cursor: help; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-  mark::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 5; width: max-content; max-width: 250px; padding: 9px 12px; border-radius: 10px; background: var(--ink); color: var(--bg); font: 500 13px/1.4 var(--sans); white-space: normal; opacity: 0; transform: translateY(4px); pointer-events: none; transition: opacity .15s, transform .15s; }
-  mark:hover::after, mark:focus::after { opacity: 1; transform: none; }
-  .legend-note { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
-
-  /* side */
-  .side { display: grid; gap: 20px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 2px 2px 8px; scrollbar-width: thin; }
-  @media (max-width: 900px) { .side { position: static; max-height: none; overflow: visible; } }
-
-  .result { text-align: center; --state: var(--muted); transition: background .4s, border-color .4s; }
-  .result[data-state="safe"] { --state: var(--safe); }
-  .result[data-state="warn"] { --state: var(--warn); }
-  .result[data-state="risk"] { --state: var(--risk); }
-  .result[data-state="safe"], .result[data-state="warn"], .result[data-state="risk"] { background: linear-gradient(180deg, color-mix(in srgb, var(--state) 11%, var(--surface)), var(--surface) 55%); border-color: color-mix(in srgb, var(--state) 35%, var(--line)); }
-  .dial { width: 100%; max-width: 330px; display: block; margin: 0 auto; overflow: visible; }
-  .dial .s1 { stop-color: var(--safe); } .dial .s2 { stop-color: var(--warn); } .dial .s3 { stop-color: var(--risk); }
-  .dial .base { stroke: var(--track); }
-  .dial .ticks line { stroke: var(--muted); opacity: .55; stroke-width: 1.5; }
-  .dial .end { font: 600 11px var(--sans); fill: var(--muted); }
-  .dial .needle, .dial .hub { fill: var(--ink); } .dial .hub-dot { fill: var(--surface); }
-  .dial .pct { font: 700 30px var(--display); fill: var(--ink); font-variant-numeric: tabular-nums; }
-  .dial.idle .needle, .dial.idle .hub { opacity: .35; }
-  .dial.idle .pct { fill: var(--muted); }
-  .stale { opacity: .45; transition: opacity .2s; }
-
-  .verdict { display: inline-block; font-family: var(--display); font-weight: 700; font-size: 23px; letter-spacing: .04em; text-transform: uppercase; color: var(--state); border: 3px solid var(--state); border-radius: 12px; padding: 4px 16px; margin: 8px 0 10px; transform: rotate(-3deg); outline: 1px solid var(--state); outline-offset: 3px; background: color-mix(in srgb, var(--state) 8%, transparent); }
-  .verdict.slam { animation: slam .4s cubic-bezier(.2,1.3,.4,1); }
-  @keyframes slam { 0% { transform: rotate(-12deg) scale(2); opacity: 0; } 60% { opacity: 1; } 100% { transform: rotate(-3deg) scale(1); } }
-  .plain-title { font-family: var(--display); font-size: 22px; font-weight: 700; margin: 6px 0 4px; }
-  .note { color: var(--muted); margin: 0 auto; max-width: 38ch; font-size: 15px; }
-  .top { text-align: left; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
-  .top h3 { font: 600 14px var(--sans); margin: 0 0 10px; }
-  .result-actions { margin-top: 16px; }
-  .disclaimer { margin: 16px 0 0; font-size: 12.5px; color: var(--muted); text-align: left; }
-
-  /* reasons */
-  ul.clean { margin: 0; padding: 0; list-style: none; }
-  .count-pill { font-size: 12.5px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
-  .count-pill.hot { background: var(--risk); border-color: var(--risk); color: #fff; }
-  .group-title { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); color: var(--muted); margin: 16px 0 6px; }
-  .group-title:first-of-type { margin-top: 0; }
-  .reason { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--line); }
-  .reason:first-child { border-top: 0; }
-  .r-ico { flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 15px; margin-top: 1px; }
-  .reason.risk .r-ico { background: color-mix(in srgb, var(--risk) 15%, transparent); color: var(--risk); }
-  .reason.warn .r-ico { background: color-mix(in srgb, var(--warn) 17%, transparent); color: var(--warn); }
-  .reason.good .r-ico { background: color-mix(in srgb, var(--safe) 15%, transparent); color: var(--safe); }
-  .r-body { flex: 1; min-width: 0; }
-  .r-title { font-weight: 600; font-size: 15px; line-height: 1.3; }
-  .r-detail { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
-  .impact { flex: none; display: flex; gap: 3px; margin-top: 8px; }
-  .impact i { width: 6px; height: 6px; border-radius: 50%; background: var(--track); }
-  .reason.risk .impact i.on { background: var(--risk); } .reason.warn .impact i.on { background: var(--warn); } .reason.good .impact i.on { background: var(--safe); }
-  .reasons-empty { font-size: 14px; color: var(--muted); margin: 0; }
-  .model { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
-  .model h3 { font: 600 13px var(--sans); color: var(--muted); margin: 0 0 8px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .chip { font-size: 13px; padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor; }
-  .chip.fraud { color: var(--risk); } .chip.legit { color: var(--safe); }
-
-  .history li + li { border-top: 1px solid var(--line); }
-  .history button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: transparent; color: var(--ink); border-radius: 8px; padding: 10px 6px; font: 500 14px var(--sans); cursor: pointer; }
-  .history button:hover { background: var(--surface-2); }
-  .history .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .history .pct { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .history .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
-  .history .safe { background: var(--safe); } .history .warn { background: var(--warn); } .history .risk { background: var(--risk); }
-  .card-title .btn { margin-left: auto; }
-
-  .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--track); border-top-color: var(--accent); animation: spin .8s linear infinite; margin: 10px auto 8px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 12px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
-  .toast.show { opacity: 1; transform: translate(-50%, 0); }
-
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; } }
-  [hidden] { display: none !important; }
+@media(max-width:900px){
+  .nav-links{display:none}.steps{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}
+  .res{grid-template-columns:1fr;padding:26px;text-align:center}.res .why{margin:auto}.signals{justify-content:center}
+  .toggles{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  form{grid-template-columns:1fr}.panel{padding:22px 18px;border-radius:20px}.hero{padding:70px 0 50px}.status span.t{display:none}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 7.5v6M12 17h.01"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.3-3 7.6-7.5 9.5-4.5-1.9-7.5-5.2-7.5-9.5V6L12 3z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
-  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M9.5 12h5M9.5 16h5"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
-  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/></symbol>
-  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></symbol>
-  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5v-2a2 2 0 00-2-2h-7a2 2 0 00-2 2v7a2 2 0 002 2h2"/></symbol>
-</svg>
 
-<div class="band">
+<nav>
   <div class="wrap">
-    <header>
-      <div class="brand"><span class="logo"><svg class="i"><use href="#i-shield"/></svg></span>Job posting checker</div>
-      <button type="button" class="theme-btn" id="theme-btn"><svg class="i" id="theme-icon"><use href="#i-moon"/></svg><span id="theme-label">Dark mode</span></button>
-    </header>
-    <h1>Is this job posting real?</h1>
-    <p class="lead">Paste the ad. A trained model scores it, and every verdict comes with the reasons behind it.</p>
-    <ul class="perks">
-      <li><svg class="i"><use href="#i-spark"/></svg>Machine-learning score</li>
-      <li><svg class="i"><use href="#i-search"/></svg>Suspicious phrases highlighted</li>
-      <li><svg class="i"><use href="#i-list"/></svg>Clear reasons, not just a number</li>
-    </ul>
+    <a href="#top" class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5L15.5 10"/></svg></span>
+      JobShield AI
+    </a>
+    <div class="nav-links"><a href="#how">How it works</a><a href="#analyze">Analyzer</a></div>
+    <div class="status"><span class="dot" id="dot"></span><span class="t" id="statusTxt">Model online</span></div>
   </div>
-</div>
+</nav>
 
-<div class="wrap main">
-  <div class="layout">
-    <!-- LEFT: INPUT -->
-    <form class="card" id="job-form" novalidate>
-      <div class="card-title">
-        <span class="ico"><svg class="i"><use href="#i-doc"/></svg></span>
-        <div><h2>Check a posting</h2><small>Paste it, or fill in the fields</small></div>
-      </div>
-
-      <div class="seg" role="tablist" aria-label="Input view">
-        <button type="button" role="tab" id="tab-paste" aria-selected="true" aria-controls="view-paste">Paste ad</button>
-        <button type="button" role="tab" id="tab-fields" aria-selected="false" aria-controls="view-fields" tabindex="-1">Fill in fields</button>
-        <button type="button" role="tab" id="tab-marked" aria-selected="false" aria-controls="view-marked" tabindex="-1">Marked-up view <span class="badge" id="tab-badge" hidden>0</span></button>
-      </div>
-
-      <div id="view-paste" role="tabpanel" aria-labelledby="tab-paste">
-        <div class="field">
-          <label for="paste">The whole ad <span class="hint">(first line becomes the job title)</span></label>
-          <textarea id="paste" placeholder="Data Entry Clerk - Work From Home&#10;&#10;Earn $5000 weekly. No experience needed…&#10;&#10;Requirements:&#10;Computer and internet access"></textarea>
-          <div class="error-text" id="paste-error" role="alert"></div>
-        </div>
-      </div>
-
-      <div id="view-fields" role="tabpanel" aria-labelledby="tab-fields" hidden>
-        <div class="field">
-          <label for="title">Job title <span class="req">*</span></label>
-          <input type="text" id="title" placeholder="e.g. Customer Service Representative" autocomplete="off">
-          <div class="error-text" id="title-error" role="alert"></div>
-        </div>
-        <div class="field">
-          <label for="company_profile">Company profile <span class="hint">(optional)</span></label>
-          <textarea id="company_profile" placeholder="What the company says about itself"></textarea>
-        </div>
-        <div class="field">
-          <label for="description">Job description <span class="counter" id="desc-count">0 characters</span></label>
-          <textarea id="description" rows="5" placeholder="Paste the full description. Longer text gives a more reliable result."></textarea>
-        </div>
-        <div class="field">
-          <label for="requirements">Requirements <span class="hint">(optional)</span></label>
-          <textarea id="requirements" placeholder="Skills, experience, qualifications"></textarea>
-        </div>
-      </div>
-
-      <div id="view-marked" role="tabpanel" aria-labelledby="tab-marked" hidden>
-        <div class="paper" id="paper"></div>
-        <p class="legend-note">Hover or focus a highlight to see why it was flagged. Edit the text in the other views.</p>
-      </div>
-
-      <div class="details">
-        <div class="row3 field">
-          <div>
-            <label for="employment_type">Employment type</label>
-            <select id="employment_type">
-              <option>Unknown</option><option>Full-time</option><option>Part-time</option>
-              <option>Contract</option><option>Temporary</option><option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label for="required_experience">Experience level</label>
-            <select id="required_experience">
-              <option>Unknown</option><option>Internship</option><option>Entry level</option>
-              <option>Associate</option><option>Mid-Senior level</option>
-              <option>Director</option><option>Executive</option><option>Not Applicable</option>
-            </select>
-          </div>
-          <div>
-            <label for="required_education">Education</label>
-            <select id="required_education">
-              <option>Unknown</option><option>Unspecified</option>
-              <option>High School or equivalent</option><option>Certification</option>
-              <option>Vocational</option><option>Associate Degree</option>
-              <option>Bachelor's Degree</option><option>Master's Degree</option>
-              <option>Doctorate</option><option>Professional</option>
-            </select>
-          </div>
-        </div>
-        <div class="switches">
-          <label class="switch"><span class="text">Work from home allowed</span>
-            <input type="checkbox" id="telecommuting"><span class="track"></span></label>
-          <label class="switch"><span class="text">Shows a company logo</span>
-            <input type="checkbox" id="has_company_logo"><span class="track"></span></label>
-          <label class="switch"><span class="text">Includes screening questions</span>
-            <input type="checkbox" id="has_questions"><span class="track"></span></label>
-        </div>
-      </div>
-
-      <div class="meter-row" aria-live="polite">
-        <div class="meter" role="progressbar" aria-label="How complete the posting details are" aria-valuemin="0" aria-valuemax="100" id="meter-bar"><span id="meter-fill"></span></div>
-        <span class="meter-text" id="meter-text"></span>
-      </div>
-
-      <div class="actions">
-        <button type="submit" class="btn primary" id="submit-btn"><svg class="i"><use href="#i-shield"/></svg><span id="submit-label">Check this posting</span></button>
-        <button type="button" class="btn quiet" id="clear-btn">Clear</button>
-        <label class="live"><span>Check as I type</span>
-          <input type="checkbox" id="live-toggle"><span class="track"></span></label>
-      </div>
-      <div class="examples">
-        <span>Try an example:</span>
-        <button type="button" class="btn small" data-example="scam">Suspicious ad</button>
-        <button type="button" class="btn small" data-example="legit">Regular ad</button>
-        <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to check</span>
-      </div>
-    </form>
-
-    <!-- RIGHT: RESULTS -->
-    <div class="side">
-      <aside class="card result" id="result" data-state="idle" aria-live="polite">
-        <svg class="dial idle" id="dial" viewBox="0 0 240 168" role="img" aria-label="Fraud risk dial">
-          <defs>
-            <linearGradient id="dial-grad" gradientUnits="userSpaceOnUse" x1="24" y1="0" x2="216" y2="0">
-              <stop offset="0" class="s1"/><stop offset=".5" class="s2"/><stop offset="1" class="s3"/>
-            </linearGradient>
-          </defs>
-          <path class="base" d="M 24 120 A 96 96 0 0 1 216 120" fill="none" stroke-width="18" stroke-linecap="round"/>
-          <path d="M 24 120 A 96 96 0 0 1 216 120" fill="none" stroke="url(#dial-grad)" stroke-width="18" stroke-linecap="round" opacity=".92"/>
-          <g class="ticks" id="ticks"></g>
-          <g id="needle" transform="rotate(-90 120 120)"><path class="needle" d="M 120 126 L 115.5 120 L 120 46 L 124.5 120 Z"/></g>
-          <circle class="hub" cx="120" cy="120" r="10"/><circle class="hub-dot" cx="120" cy="120" r="3.5"/>
-          <text class="end" x="24" y="142" text-anchor="middle">Real</text>
-          <text class="end" x="216" y="142" text-anchor="middle">Scam</text>
-          <text class="pct" id="pct" x="120" y="158" text-anchor="middle">–</text>
-        </svg>
-
-        <div id="st-empty">
-          <p class="plain-title">No result yet</p>
-          <p class="note">Paste an ad and select “Check this posting”. You will see the verdict and the reasons here.</p>
-        </div>
-        <div id="st-loading" hidden>
-          <div class="spinner" aria-hidden="true"></div>
-          <p class="note">Analyzing posting…</p>
-        </div>
-        <div id="st-error" hidden>
-          <p class="plain-title" style="color: var(--risk)">Could not get a result</p>
-          <p class="note" id="error-msg"></p>
-        </div>
-        <div id="st-output" hidden>
-          <div id="output-body">
-            <div class="verdict" id="verdict"></div>
-            <p class="note" id="verdict-note"></p>
-            <div class="top" id="top">
-              <h3 id="top-title">Main reasons</h3>
-              <ul class="clean" id="top-list"></ul>
-            </div>
-            <div class="result-actions"><button type="button" class="btn small" id="copy-btn"><svg class="i"><use href="#i-copy"/></svg>Copy summary</button></div>
-          </div>
-          <p class="disclaimer">This is a statistical estimate, not proof. Verify the company independently, and never pay money or share ID documents to apply for a job.</p>
-        </div>
-      </aside>
-
-      <section class="card" aria-labelledby="why-title">
-        <div class="card-title">
-          <span class="ico"><svg class="i"><use href="#i-list"/></svg></span>
-          <div><h2 id="why-title">Posting checklist</h2><small>Updates as you type</small></div>
-          <span class="count-pill" id="flag-count">0 red flags</span>
-        </div>
-        <p class="reasons-empty" id="reasons-empty">Add some text and the checklist builds itself.</p>
-        <div id="reasons-body" hidden>
-          <div id="risk-group">
-            <div class="group-title"><span>Raises the risk</span><span class="count-pill" id="risk-n">0</span></div>
-            <ul class="clean" id="risk-list"></ul>
-          </div>
-          <div id="good-group">
-            <div class="group-title"><span>Lowers the risk</span><span class="count-pill" id="good-n">0</span></div>
-            <ul class="clean" id="good-list"></ul>
-          </div>
-        </div>
-        <div class="model" id="model" hidden>
-          <h3>What the model weighed</h3>
-          <ul class="clean chips" id="fraud-chips"></ul>
-          <ul class="clean chips" id="legit-chips"></ul>
-        </div>
-      </section>
-
-      <section class="card" id="history-panel" hidden aria-labelledby="history-title">
-        <div class="card-title">
-          <span class="ico"><svg class="i"><use href="#i-clock"/></svg></span>
-          <h2 id="history-title">Recent checks</h2>
-          <button type="button" class="btn quiet small" id="history-clear">Clear</button>
-        </div>
-        <ul class="clean history" id="history"></ul>
-      </section>
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="pill">● NLP + LOGISTIC REGRESSION · TRAINED ON 17,880 POSTINGS</span>
+    <h1>Spot fake job postings <span class="grad">before they spot you.</span></h1>
+    <p class="lead">Online recruitment scams cost job seekers millions. JobShield reads the language, structure and metadata of a listing and scores its likelihood of being fraudulent in under a second.</p>
+    <div class="cta">
+      <a href="#analyze" class="btn btn-primary">Analyze a job posting
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+      <a href="#how" class="btn btn-ghost">How it works</a>
+    </div>
+    <div class="stats reveal">
+      <div class="stat"><b>98%</b><span>Overall accuracy</span></div>
+      <div class="stat"><b>0.81</b><span>F1 on fraudulent class</span></div>
+      <div class="stat"><b>5,000</b><span>Text features analysed</span></div>
+      <div class="stat"><b>&lt;1s</b><span>Typical response time</span></div>
     </div>
   </div>
-</div>
+</header>
 
-<div class="toast" id="toast" role="status"></div>
+<section id="how">
+  <div class="wrap">
+    <div class="reveal"><span class="eyebrow">Under the hood</span><h2>A transparent, three-stage pipeline.</h2>
+    <p class="sub">The same scikit-learn pipeline you trained, served through FastAPI — no black boxes added on top.</p></div>
+    <div class="steps">
+      <div class="card reveal"><span class="n">01</span><div class="ico"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div><h3>Text fusion</h3><p>Title, company profile, description and requirements are merged and vectorised into the 5,000 most informative terms.</p></div>
+      <div class="card reveal"><span class="n">02</span><div class="ico"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div><h3>Metadata signals</h3><p>Employment type, experience, education, logo, screening questions and remote flag are encoded alongside the text.</p></div>
+      <div class="card reveal"><span class="n">03</span><div class="ico"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-9"/></svg></div><h3>Risk scoring</h3><p>A class-balanced logistic regression returns a fraud probability and a final Fake / Genuine verdict.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="analyze">
+  <div class="wrap">
+    <div class="panel reveal">
+      <div class="panel-head">
+        <div><span class="eyebrow">Job analyzer</span><h2 style="margin-bottom:6px">Paste a posting. Get a verdict.</h2><p class="sub">Fields marked <span class="req">*</span> are required. More detail means a more reliable score.</p></div>
+        <div class="samples"><span>Try an example:</span><button type="button" class="chip" data-sample="real">Genuine-looking</button><button type="button" class="chip" data-sample="fake">Suspicious</button></div>
+      </div>
+
+      <form id="form" novalidate>
+        <div class="field full" data-f="title">
+          <label for="title"><span>Job title <span class="req">*</span></span></label>
+          <input type="text" id="title" placeholder="e.g. Senior Backend Engineer" maxlength="200" autocomplete="off">
+          <div class="msg">Please enter a job title.</div>
+        </div>
+
+        <div class="field full">
+          <label for="company_profile"><span>Company profile</span><span class="opt">OPTIONAL</span></label>
+          <textarea id="company_profile" placeholder="Who is the company? What do they do?" style="min-height:96px"></textarea>
+        </div>
+
+        <div class="field full" data-f="description">
+          <label for="description"><span>Job description <span class="req">*</span></span><span class="cnt" id="descCnt">0 chars</span></label>
+          <textarea id="description" placeholder="Paste the full job description here…" style="min-height:150px"></textarea>
+          <div class="msg">Please provide a description of at least 30 characters.</div>
+        </div>
+
+        <div class="field full">
+          <label for="requirements"><span>Requirements</span><span class="opt">OPTIONAL</span></label>
+          <textarea id="requirements" placeholder="Skills, qualifications, experience…" style="min-height:96px"></textarea>
+        </div>
+
+        <div class="field"><label for="employment_type">Employment type</label>
+          <select id="employment_type"><option>Unknown</option><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Temporary</option><option>Other</option></select></div>
+        <div class="field"><label for="required_experience">Required experience</label>
+          <select id="required_experience"><option>Unknown</option><option>Internship</option><option>Entry level</option><option>Associate</option><option>Mid-Senior level</option><option>Director</option><option>Executive</option><option>Not Applicable</option></select></div>
+        <div class="field full"><label for="required_education">Required education</label>
+          <select id="required_education"><option>Unknown</option><option>Unspecified</option><option>High School or equivalent</option><option>Vocational</option><option>Certification</option><option>Some College Coursework Completed</option><option>Associate Degree</option><option>Bachelor's Degree</option><option>Master's Degree</option><option>Doctorate</option><option>Professional</option></select></div>
+
+        <div class="toggles full">
+          <label class="toggle"><span><strong>Remote / telecommuting</strong><small>Position can be done remotely</small></span><input type="checkbox" id="telecommuting"><span class="sw"></span></label>
+          <label class="toggle"><span><strong>Company logo</strong><small>Posting displays a logo</small></span><input type="checkbox" id="has_company_logo" checked><span class="sw"></span></label>
+          <label class="toggle"><span><strong>Screening questions</strong><small>Applicants answer questions</small></span><input type="checkbox" id="has_questions"><span class="sw"></span></label>
+        </div>
+
+        <div class="alert" id="alert" role="alert">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg>
+          <span id="alertTxt"></span>
+        </div>
+
+        <div class="actions full">
+          <button type="submit" class="btn btn-primary analyze" id="go">
+            <span class="spinner"></span><span id="goTxt">Analyze Job</span>
+          </button>
+          <button type="button" class="btn btn-ghost" id="reset">Reset</button>
+          <span class="note">Nothing is stored. Analysis runs on your own server.</span>
+        </div>
+      </form>
+
+      <div class="scan" id="scan" aria-live="polite">
+        <div class="bars" id="bars"></div>
+        <p id="scanTxt">Initialising…</p>
+      </div>
+
+      <div id="result" aria-live="polite">
+        <div class="res" id="res">
+          <div class="gauge">
+            <svg viewBox="0 0 220 220"><circle class="trk" cx="110" cy="110" r="95"/><circle class="val" id="arc" cx="110" cy="110" r="95"/></svg>
+            <div class="mid"><b id="pct">0%</b><span>Fraud probability</span></div>
+          </div>
+          <div>
+            <span class="verdict" id="verdict"></span>
+            <h3 id="vTitle"></h3>
+            <p class="why" id="vWhy"></p>
+            <div class="meter"><i id="needle"></i></div>
+            <div class="scale"><span>SAFE</span><span>SUSPICIOUS</span><span>FRAUDULENT</span></div>
+            <div class="signals" id="signals"></div>
+          </div>
+        </div>
+        <p class="disc">This is a probabilistic model (≈81% F1 on fraudulent posts). Always verify employers independently and never pay to apply.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><span>© <span id="yr"></span> JobShield AI — Fake Job Posting Detection</span><span class="mono">scikit-learn · FastAPI · vanilla JS</span></div></footer>
 
 <script>
 (() => {
-  const $ = (id) => document.getElementById(id);
-  const form = $("job-form");
-  const textFields = ["title", "company_profile", "description", "requirements"];
-  const selectFields = ["employment_type", "required_experience", "required_education"];
-  const switchFields = ["telecommuting", "has_company_logo", "has_questions"];
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const HISTORY_KEY = "jobcheck-history";
-  const THEME_KEY = "jobcheck-theme";
+  const $ = id => document.getElementById(id);
+  const API = location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+  const form = $('form'), go = $('go'), scan = $('scan'), result = $('result');
+  $('yr').textContent = new Date().getFullYear();
 
-  const EXAMPLES = {
-    scam: {
-      title: "Data Entry Clerk - Work From Home",
-      company_profile: "",
-      description: "EARN $5000 WEEKLY from home! No experience needed. No interview. Start immediately. Send your full name, address and bank account details to our recruiter by email to receive your starter kit. Limited positions available.",
-      requirements: "Computer and internet access. Must be able to pay a small registration fee.",
-      employment_type: "Other", required_experience: "Not Applicable", required_education: "Unspecified",
-      telecommuting: true, has_company_logo: false, has_questions: false
-    },
-    legit: {
-      title: "Backend Software Engineer",
-      company_profile: "We are a 300-person logistics software company building route planning tools used by retailers across Europe. Our engineering team works in small cross-functional squads.",
-      description: "You will design and maintain REST services in Python, work with product managers on new features, review code with teammates and help improve our deployment pipeline. The role is based in our Berlin office with two remote days per week. Our interview process has three stages: a recruiter call, a technical discussion and a team meeting.",
-      requirements: "3+ years of professional experience with Python or a similar language, familiarity with PostgreSQL, Docker and automated testing. A degree in computer science or equivalent experience.",
-      employment_type: "Full-time", required_experience: "Mid-Senior level", required_education: "Bachelor's Degree",
-      telecommuting: false, has_company_logo: true, has_questions: true
-    }
+  // Scroll reveal
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll('.reveal').forEach((el, i) => { el.style.transitionDelay = (i % 3) * 80 + 'ms'; io.observe(el); });
+
+  // Loader bars
+  $('bars').innerHTML = Array.from({ length: 36 }, (_, i) => `<i style="animation-delay:${(i * 0.07).toFixed(2)}s"></i>`).join('');
+
+  // Live char count
+  $('description').addEventListener('input', e => { $('descCnt').textContent = e.target.value.length.toLocaleString() + ' chars'; clearErr('description'); });
+  $('title').addEventListener('input', () => clearErr('title'));
+
+  function setErr(name) { document.querySelector(`[data-f="${name}"]`).classList.add('err'); }
+  function clearErr(name) { document.querySelector(`[data-f="${name}"]`).classList.remove('err'); }
+  function showAlert(msg) { $('alertTxt').textContent = msg; $('alert').classList.add('show'); }
+  function hideAlert() { $('alert').classList.remove('show'); }
+
+  // Backend health indicator
+  fetch(API + '/openapi.json').then(r => { if (!r.ok) throw 0; }).catch(() => {
+    $('dot').classList.add('off'); $('statusTxt').textContent = 'Backend offline';
+  });
+
+  // Samples
+  const SAMPLES = {
+    real: { title: 'Senior Backend Engineer', company_profile: 'Northwind Labs builds logistics software used by 400+ retailers. Founded in 2012, we are a team of 180 engineers across Berlin and Lisbon.', description: 'We are looking for a Senior Backend Engineer to design and scale the services behind our routing platform. You will own services end to end, collaborate with product and data teams, mentor engineers, and take part in on-call rotations.', requirements: '5+ years of experience with Python or Go, strong knowledge of PostgreSQL, experience with distributed systems and cloud infrastructure.', employment_type: 'Full-time', required_experience: 'Mid-Senior level', required_education: "Bachelor's Degree", telecommuting: 0, has_company_logo: 1, has_questions: 1 },
+    fake: { title: 'Data Entry Clerk - Work From Home - Earn $5000/week', company_profile: '', description: 'Earn money from home! No experience needed. Immediate start. Send your personal details, bank account number and a small registration fee to receive your starter kit. Unlimited earning potential, apply now!', requirements: 'Must have a computer and bank account. No interview required.', employment_type: 'Unknown', required_experience: 'Unknown', required_education: 'Unknown', telecommuting: 1, has_company_logo: 0, has_questions: 0 }
   };
+  document.querySelectorAll('[data-sample]').forEach(b => b.addEventListener('click', () => {
+    const s = SAMPLES[b.dataset.sample];
+    ['title','company_profile','description','requirements','employment_type','required_experience','required_education'].forEach(k => $(k).value = s[k]);
+    ['telecommuting','has_company_logo','has_questions'].forEach(k => $(k).checked = !!s[k]);
+    $('description').dispatchEvent(new Event('input'));
+    hideAlert(); result.classList.remove('show');
+  }));
 
-  const FLAGS = [
-    { name: "Asks for sensitive details", weight: 3, hint: "Real employers do not collect bank or ID details in an ad or first email.", re: /bank account|account number|routing number|credit card|card number|social security|\bssn\b|passport (copy|number)/i },
-    { name: "Asks you to pay", weight: 3, hint: "Legitimate jobs do not charge candidates fees or sell starter kits.", re: /registration fee|processing fee|training fee|application fee|security deposit|upfront (fee|payment)|pay (a )?(small )?fee|starter kit/i },
-    { name: "Unusual payment methods", weight: 3, hint: "Gift cards, crypto and wire transfers are common in payment scams.", re: /wire transfer|western union|money ?gram|gift cards?|bitcoin|crypto(currency)?|cashier['’]?s? che(que|ck)/i },
-    { name: "Pay that sounds too good", weight: 2, hint: "Very high pay for simple work is a classic lure.", re: /\$\s?\d[\d,]{2,}\s*(\/|per|a)?\s*(week|weekly|day|daily)|earn\s+\$?\d[\d,]{3,}/i },
-    { name: "Hiring with no screening", weight: 2, hint: "Real hiring involves an interview or at least some screening.", re: /no (interview|experience (needed|required|necessary))|hired (immediately|instantly|on the spot)|start (immediately|today)/i },
-    { name: "Personal contact channels", weight: 2, hint: "Recruiters at real companies usually use company email, not chat apps or free email.", re: /whatsapp|telegram|@(gmail|yahoo|hotmail|outlook)\.com/i },
-    { name: "Pressure to act fast", weight: 1, hint: "Urgency is used to stop you from checking the offer.", re: /limited (positions|spots|openings)|act (now|fast)|urgent(ly)? (hiring|needed)|apply (now|today) before/i }
-  ];
-
-  /* ---------- storage + theme ---------- */
-  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
-  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-  const root = document.documentElement;
-  const sysDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
-  function applyTheme(t) {
-    root.dataset.theme = t;
-    $("theme-label").textContent = t === "dark" ? "Light mode" : "Dark mode";
-    $("theme-icon").firstElementChild.setAttribute("href", t === "dark" ? "#i-sun" : "#i-moon");
-  }
-  const saved = load(THEME_KEY);
-  applyTheme(saved === "dark" || saved === "light" ? saved : (sysDark() ? "dark" : "light"));
-  $("theme-btn").addEventListener("click", () => {
-    const next = root.dataset.theme === "dark" ? "light" : "dark";
-    applyTheme(next); store(THEME_KEY, next);
+  $('reset').addEventListener('click', () => {
+    form.reset(); $('has_company_logo').checked = true;
+    $('descCnt').textContent = '0 chars'; ['title','description'].forEach(clearErr);
+    hideAlert(); result.classList.remove('show'); scan.classList.remove('show');
   });
 
-  /* ---------- helpers ---------- */
-  let toastTimer;
-  function toast(msg) {
-    const t = $("toast"); t.textContent = msg; t.classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
-  }
-  function showStatus(name) { ["empty", "loading", "error", "output"].forEach((n) => { $("st-" + n).hidden = n !== name; }); }
-  function stateFor(pred, prob) { return pred === 1 ? "risk" : (prob >= 0.25 ? "warn" : "safe"); }
-  const VERDICTS = {
-    risk: ["Likely scam", "This posting matches patterns found in known scam ads. Be very careful."],
-    warn: ["Check first", "Probably legitimate, but some warning signs showed up. Verify the company before sharing details."],
-    safe: ["Looks real", "Few of the patterns linked to scam postings were found."]
-  };
-  function iconEl(name) {
-    const ns = "http://www.w3.org/2000/svg";
-    const s = document.createElementNS(ns, "svg"); s.setAttribute("class", "i"); s.setAttribute("aria-hidden", "true");
-    const u = document.createElementNS(ns, "use"); u.setAttribute("href", "#i-" + name); s.appendChild(u); return s;
-  }
+  // Submit
+  form.addEventListener('submit', async e => {
+    e.preventDefault(); hideAlert();
+    const title = $('title').value.trim(), desc = $('description').value.trim();
+    let ok = true;
+    if (!title) { setErr('title'); ok = false; }
+    if (desc.length < 30) { setErr('description'); ok = false; }
+    if (!ok) { document.querySelector('.err').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
 
-  /* ---------- dial ---------- */
-  (function drawTicks() {
-    const g = $("ticks"), ns = "http://www.w3.org/2000/svg";
-    for (let p = 0; p <= 100; p += 10) {
-      const a = Math.PI * (1 - p / 100), major = p % 50 === 0, r1 = 78, r2 = major ? 68 : 72;
-      const l = document.createElementNS(ns, "line");
-      l.setAttribute("x1", 120 + r1 * Math.cos(a)); l.setAttribute("y1", 120 - r1 * Math.sin(a));
-      l.setAttribute("x2", 120 + r2 * Math.cos(a)); l.setAttribute("y2", 120 - r2 * Math.sin(a));
-      g.appendChild(l);
-    }
-  })();
-  let dialRaf = 0, dialVal = 0;
-  function drawDial(needleP, numP) {
-    const np = Math.max(-4, Math.min(104, needleP));
-    $("needle").setAttribute("transform", "rotate(" + (-90 + 1.8 * np) + " 120 120)");
-    $("pct").textContent = Math.round(Math.max(0, Math.min(100, numP))) + "%";
-  }
-  const easeOutBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
-  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-  function animateDial(to) {
-    cancelAnimationFrame(dialRaf);
-    const done = () => { dialVal = to; drawDial(to, to); if (to > 0 && Math.round(to) === 0) $("pct").textContent = "<1%"; };
-    if (reduceMotion) return done();
-    const from = dialVal, t0 = performance.now(), dur = 1100;
-    const step = (now) => {
-      const t = Math.min(1, (now - t0) / dur);
-      drawDial(from + (to - from) * easeOutBack(t), from + (to - from) * easeOutCubic(t));
-      if (t < 1) dialRaf = requestAnimationFrame(step); else done();
+    const payload = {
+      title,
+      company_profile: $('company_profile').value.trim(),
+      description: desc,
+      requirements: $('requirements').value.trim(),
+      employment_type: $('employment_type').value,
+      required_experience: $('required_experience').value,
+      required_education: $('required_education').value,
+      telecommuting: +$('telecommuting').checked,
+      has_company_logo: +$('has_company_logo').checked,
+      has_questions: +$('has_questions').checked
     };
-    dialRaf = requestAnimationFrame(step);
-  }
 
-  /* ---------- tabs ---------- */
-  const TABS = ["paste", "fields", "marked"];
-  function setTab(name) {
-    TABS.forEach((t) => {
-      const sel = t === name;
-      $("tab-" + t).setAttribute("aria-selected", sel); $("tab-" + t).tabIndex = sel ? 0 : -1; $("view-" + t).hidden = !sel;
-    });
-    if (name === "paste") syncPasteFromFields();
-    if (name === "marked") renderMarked();
-  }
-  TABS.forEach((t, i) => {
-    $("tab-" + t).addEventListener("click", () => setTab(t));
-    $("tab-" + t).addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const n = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
-      setTab(n); $("tab-" + n).focus();
-    });
-  });
-  const activeTab = () => TABS.find((t) => !$("view-" + t).hidden);
-
-  /* ---------- paste <-> fields ---------- */
-  let remoteTouched = false;
-  function parsePasted(text) {
-    const lines = text.replace(/\r/g, "").split("\n");
-    let i = 0; while (i < lines.length && !lines[i].trim()) i++;
-    const title = (lines[i] || "").trim();
-    const rest = lines.slice(i + 1).join("\n").trim();
-    const m = rest.match(/(?:^|\n)[ \t]*(requirements|qualifications|what you(?:'|’)ll need|skills)[ \t]*:?[ \t]*\n/i);
-    let description = rest, requirements = "";
-    if (m) { description = rest.slice(0, m.index).trim(); requirements = rest.slice(m.index + m[0].length).trim(); }
-    return { title, description, requirements };
-  }
-  function syncFieldsFromPaste() {
-    const text = $("paste").value, p = parsePasted(text);
-    $("title").value = p.title; $("description").value = p.description; $("requirements").value = p.requirements;
-    if (!remoteTouched && /\b(remote|work from home|wfh)\b/i.test(text)) $("telecommuting").checked = true;
-  }
-  function syncPasteFromFields() {
-    const t = $("title").value.trim(), d = $("description").value.trim(), r = $("requirements").value.trim();
-    $("paste").value = [t, d, r ? "Requirements:\n" + r : ""].filter(Boolean).join("\n\n");
-  }
-  $("paste").addEventListener("input", syncFieldsFromPaste);
-  $("telecommuting").addEventListener("change", () => { remoteTouched = true; });
-
-  /* ---------- form data ---------- */
-  function updateCounter() { $("desc-count").textContent = $("description").value.length.toLocaleString() + " characters"; }
-  function clearTitleError() {
-    ["title", "paste"].forEach((k) => $(k).classList.remove("invalid"));
-    $("title-error").textContent = ""; $("paste-error").textContent = "";
-  }
-  function buildPayload() {
-    const payload = {};
-    textFields.forEach((k) => { const v = $(k).value.trim(); payload[k] = k === "title" ? v : (v || " "); });
-    selectFields.forEach((k) => { payload[k] = $(k).value; });
-    switchFields.forEach((k) => { payload[k] = $(k).checked ? 1 : 0; });
-    return payload;
-  }
-  function readForm() {
-    const d = {};
-    [...textFields, ...selectFields].forEach((k) => { d[k] = $(k).value; });
-    switchFields.forEach((k) => { d[k] = $(k).checked; });
-    return d;
-  }
-  function fillForm(data) {
-    [...textFields, ...selectFields].forEach((k) => { $(k).value = data[k] ?? ""; });
-    switchFields.forEach((k) => { $(k).checked = !!data[k]; });
-    remoteTouched = true;
-    syncPasteFromFields(); clearTitleError(); refreshLocal();
-  }
-  function updateMeter() {
-    const len = (k) => $(k).value.trim().length;
-    let s = 0;
-    if (len("title")) s += 15;
-    s += len("company_profile") >= 40 ? 20 : len("company_profile") ? 10 : 0;
-    s += Math.min(35, Math.round(len("description") / 300 * 35));
-    s += len("requirements") >= 40 ? 20 : len("requirements") ? 10 : 0;
-    if (selectFields.some((k) => $(k).value !== "Unknown")) s += 10;
-    s = Math.min(100, s);
-    $("meter-fill").style.width = s + "%"; $("meter-bar").setAttribute("aria-valuenow", s);
-    $("meter-text").textContent = s < 50 ? "Add more detail for a better estimate." : s < 85 ? "Good start. The description matters most." : "Enough detail for a reliable estimate.";
-  }
-
-  /* ---------- scan, reasons, marked-up view ---------- */
-  let scan = { fields: {}, count: 0, cats: [] };
-  let reasons = { raised: [], lowered: [] };
-
-  function findMarks(text) {
-    const found = [];
-    FLAGS.forEach((f) => {
-      const re = new RegExp(f.re.source, "gi"); let m;
-      while ((m = re.exec(text))) {
-        if (!m[0]) { re.lastIndex++; continue; }
-        found.push({ start: m.index, end: m.index + m[0].length, flag: f, text: m[0] });
-      }
-    });
-    found.sort((a, b) => a.start - b.start || b.end - a.end);
-    const out = []; let last = 0;
-    found.forEach((x) => { if (x.start >= last) { out.push(x); last = x.end; } });
-    return out;
-  }
-
-  function computeReasons() {
-    const v = (k) => $(k).value.trim();
-    const raised = [], lowered = [];
-    scan.cats.forEach((c) => raised.push({ kind: "risk", weight: c.flag.weight, title: c.flag.name, detail: "Found “" + c.text + "”. " + c.flag.hint }));
-    if (!textFields.some((k) => v(k))) return { raised: [], lowered: [] };
-
-    const clean = (k) => !(scan.fields[k] && scan.fields[k].length);  // fields with red flags earn no credit
-    if (v("company_profile").length >= 40 && clean("company_profile")) lowered.push({ kind: "good", weight: 2, title: "Describes the company", detail: "A real company profile gives you something concrete to verify." });
-    else raised.push({ kind: "warn", weight: 1, title: "No company profile", detail: "Scam ads often say little or nothing about the employer." });
-
-    if ($("has_company_logo").checked) lowered.push({ kind: "good", weight: 1, title: "Shows a company logo", detail: "Postings with a logo are somewhat more likely to be genuine." });
-    else raised.push({ kind: "warn", weight: 1, title: "No company logo", detail: "Postings without a logo are somewhat more likely to be fake." });
-
-    if ($("has_questions").checked) lowered.push({ kind: "good", weight: 1, title: "Includes screening questions", detail: "Many genuine postings ask a few questions before you apply." });
-    else raised.push({ kind: "warn", weight: 1, title: "No screening questions", detail: "Many genuine postings ask a few questions before you apply." });
-
-    const dl = v("description").length;
-    if (dl >= 300 && clean("description")) lowered.push({ kind: "good", weight: 2, title: "Detailed description", detail: "Specific duties and context are typical of real roles." });
-    else if (dl > 0 && dl < 120) raised.push({ kind: "warn", weight: 1, title: "Very short description", detail: "Thin postings give you little to check." });
-    else if (dl === 0) raised.push({ kind: "warn", weight: 1, title: "No job description", detail: "Without a description it is hard to judge what the work is." });
-
-    if (v("requirements").length >= 40 && clean("requirements")) lowered.push({ kind: "good", weight: 1, title: "Specific requirements", detail: "Concrete skills and experience are typical of genuine roles." });
-
-    const all = textFields.map(v).join(" ").replace(/\bno\s+interviews?\b/gi, "");
-    if (/interview|application process|recruiter call/i.test(all)) lowered.push({ kind: "good", weight: 2, title: "Explains how hiring works", detail: "Mentions an interview or application process." });
-
-    const rank = (r) => r.weight * 10 + (r.kind === "risk" ? 5 : 0);
-    raised.sort((a, b) => rank(b) - rank(a)); lowered.sort((a, b) => rank(b) - rank(a));
-    return { raised, lowered };
-  }
-
-  function reasonLi(r, withImpact) {
-    const li = document.createElement("li"); li.className = "reason " + r.kind;
-    const ic = document.createElement("span"); ic.className = "r-ico"; ic.appendChild(iconEl(r.kind === "good" ? "check" : r.kind === "risk" ? "x" : "alert"));
-    const body = document.createElement("div"); body.className = "r-body";
-    const t = document.createElement("div"); t.className = "r-title"; t.textContent = r.title;
-    const d = document.createElement("div"); d.className = "r-detail"; d.textContent = r.detail;
-    body.append(t, d); li.append(ic, body);
-    if (withImpact) {
-      const imp = document.createElement("span"); imp.className = "impact"; imp.title = "Weight of this reason";
-      for (let i = 1; i <= 3; i++) { const dot = document.createElement("i"); if (i <= r.weight) dot.className = "on"; imp.appendChild(dot); }
-      li.appendChild(imp);
-    }
-    return li;
-  }
-
-  function renderReasons() {
-    reasons = computeReasons();
-    const has = reasons.raised.length + reasons.lowered.length > 0;
-    $("reasons-empty").hidden = has; $("reasons-body").hidden = !has;
-    $("risk-group").hidden = reasons.raised.length === 0; $("good-group").hidden = reasons.lowered.length === 0;
-    $("risk-n").textContent = reasons.raised.length; $("good-n").textContent = reasons.lowered.length;
-    const rl = $("risk-list"), gl = $("good-list");
-    rl.replaceChildren(); gl.replaceChildren();
-    reasons.raised.forEach((r) => rl.appendChild(reasonLi(r, true)));
-    reasons.lowered.forEach((r) => gl.appendChild(reasonLi(r, true)));
-    const flags = scan.cats.length;
-    $("flag-count").textContent = flags + (flags === 1 ? " red flag" : " red flags");
-    $("flag-count").classList.toggle("hot", flags > 0);
-  }
-
-  function runScan() {
-    scan = { fields: {}, count: 0, cats: [] };
-    const seen = new Map();
-    textFields.forEach((k) => {
-      const marks = findMarks($(k).value);
-      scan.fields[k] = marks; scan.count += marks.length;
-      marks.forEach((m) => { if (!seen.has(m.flag)) seen.set(m.flag, m.text); });
-    });
-    FLAGS.forEach((f) => { if (seen.has(f)) scan.cats.push({ flag: f, text: seen.get(f) }); });
-    $("tab-badge").hidden = scan.count === 0; $("tab-badge").textContent = scan.count;
-    renderReasons();
-    if (activeTab() === "marked") renderMarked();
-  }
-
-  function appendMarked(el, text, marks) {
-    let pos = 0;
-    marks.forEach((m) => {
-      if (m.start > pos) el.appendChild(document.createTextNode(text.slice(pos, m.start)));
-      const mk = document.createElement("mark");
-      mk.textContent = text.slice(m.start, m.end); mk.tabIndex = 0; mk.dataset.tip = m.flag.name + ". " + m.flag.hint;
-      el.appendChild(mk); pos = m.end;
-    });
-    if (pos < text.length) el.appendChild(document.createTextNode(text.slice(pos)));
-  }
-  function renderMarked() {
-    const paper = $("paper"); paper.replaceChildren();
-    if (!textFields.some((k) => $(k).value.trim())) {
-      const p = document.createElement("p"); p.className = "empty";
-      p.textContent = "Nothing to show yet. Paste an ad or try an example, and suspicious phrases will be highlighted here.";
-      paper.appendChild(p); return;
-    }
-    const add = (k, tag, heading) => {
-      const val = $(k).value; if (!val.trim()) return;
-      if (heading) { const h = document.createElement("h4"); h.textContent = heading; paper.appendChild(h); }
-      const el = document.createElement(tag); appendMarked(el, val, scan.fields[k] || []); paper.appendChild(el);
-    };
-    add("title", "h3"); add("company_profile", "p", "About the company"); add("description", "p", "The role"); add("requirements", "p", "Requirements");
-  }
-
-  /* ---------- history ---------- */
-  function getHistory() { try { const h = JSON.parse(load(HISTORY_KEY) || "[]"); return Array.isArray(h) ? h : []; } catch (e) { return []; } }
-  function renderHistory() {
-    const h = getHistory(), ul = $("history");
-    $("history-panel").hidden = h.length === 0; ul.replaceChildren();
-    h.forEach((item, i) => {
-      const li = document.createElement("li"), b = document.createElement("button");
-      b.type = "button"; b.dataset.index = i;
-      const dot = document.createElement("span"); dot.className = "dot " + item.state; dot.setAttribute("aria-hidden", "true");
-      const name = document.createElement("span"); name.className = "name"; name.textContent = item.form.title || "Untitled";
-      const pct = document.createElement("span"); pct.className = "pct"; pct.textContent = item.pct + "%";
-      b.append(dot, name, pct); li.appendChild(b); ul.appendChild(li);
-    });
-  }
-  function pushHistory(entry) {
-    const h = getHistory().filter((x) => x.form.title !== entry.form.title || x.form.description !== entry.form.description);
-    h.unshift(entry); store(HISTORY_KEY, JSON.stringify(h.slice(0, 6))); renderHistory();
-  }
-  $("history").addEventListener("click", (e) => {
-    const b = e.target.closest("button"); if (!b) return;
-    const item = getHistory()[Number(b.dataset.index)];
-    if (item) { fillForm(item.form); runCheck({ save: false, silent: false }); }
-  });
-  $("history-clear").addEventListener("click", () => { store(HISTORY_KEY, "[]"); renderHistory(); });
-
-  /* ---------- result ---------- */
-  let lastSummary = "", lastState = null;
-  function makeChips(list, cls, container) {
-    container.replaceChildren();
-    list.forEach((s) => {
-      const li = document.createElement("li"); li.className = "chip " + cls;
-      li.textContent = s.term; li.title = "Model weight: " + s.weight; container.appendChild(li);
-    });
-  }
-  function topReasons(state, data) {
-    const src = state === "safe" ? reasons.lowered : reasons.raised;
-    const out = src.slice(0, 3);
-    const sig = (state === "safe" ? data.legit_signals : data.fraud_signals) || [];
-    if (out.length < 3 && sig.length) {
-      out.push({
-        kind: state === "safe" ? "good" : (state === "risk" ? "risk" : "warn"), weight: 2,
-        title: state === "safe" ? "Model: wording looks genuine" : "Model: wording matches scam ads",
-        detail: "Terms like “" + sig.slice(0, 3).map((s) => s.term).join("”, “") + "” " + (state === "safe" ? "pointed towards a genuine posting." : "pushed the score up.")
-      });
-    }
-    if (!out.length) {
-      out.push({
-        kind: state === "safe" ? "good" : "warn", weight: 1,
-        title: state === "safe" ? "Overall pattern looks normal" : "Overall pattern looks suspicious",
-        detail: state === "safe" ? "The text and details resemble genuine postings more than scams." : "The overall wording resembles known scam postings."
-      });
-    }
-    return out;
-  }
-  function renderResult(data, title) {
-    const prob = typeof data.fraud_probability === "number" ? data.fraud_probability : (data.prediction === 1 ? 1 : 0);
-    const state = stateFor(data.prediction, prob), pct = prob * 100;
-    const wasHidden = $("st-output").hidden;
-
-    $("result").dataset.state = state;
-    $("dial").classList.remove("idle");
-    $("output-body").classList.remove("stale");
-    $("verdict").textContent = VERDICTS[state][0];
-    $("verdict-note").textContent = VERDICTS[state][1];
-    $("top-title").textContent = state === "safe" ? "Why it looks real" : "Why it was flagged";
-
-    const tops = topReasons(state, data);
-    const tl = $("top-list"); tl.replaceChildren(); tops.forEach((r) => tl.appendChild(reasonLi(r, false)));
-
-    showStatus("output");
-    if (wasHidden || state !== lastState) { const el = $("verdict"); el.classList.remove("slam"); void el.offsetWidth; el.classList.add("slam"); }
-    lastState = state;
-    animateDial(pct);
-
-    const fraud = data.fraud_signals || [], legit = data.legit_signals || [];
-    $("model").hidden = fraud.length + legit.length === 0;
-    makeChips(fraud, "fraud", $("fraud-chips")); makeChips(legit, "legit", $("legit-chips"));
-
-    const shownPct = pct > 0 && Math.round(pct) === 0 ? "<1" : Math.round(pct);
-    lastSummary = (title || "Job posting") + ": " + VERDICTS[state][0] + " (" + shownPct + "% chance of being fraudulent). Reasons: " + tops.map((r) => r.title).join("; ") + ".";
-    return { state, pct: Math.round(pct) };
-  }
-  $("copy-btn").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(lastSummary); toast("Summary copied"); }
-    catch (e) { toast("Copy is not available in this browser"); }
-  });
-
-  /* ---------- run a check ---------- */
-  let seq = 0, controller = null;
-  async function runCheck({ save, silent }) {
-    if (activeTab() === "paste") syncFieldsFromPaste();
-    const title = $("title").value.trim();
-    if (!title) {
-      if (!silent) {
-        const inPaste = activeTab() === "paste", box = inPaste ? $("paste") : $("title");
-        box.classList.add("invalid");
-        (inPaste ? $("paste-error") : $("title-error")).textContent = inPaste ? "Paste the ad first. The first line is used as the job title." : "Enter a job title.";
-        box.focus();
-      }
-      return;
-    }
-    clearTitleError();
-
-    const mine = ++seq;
-    if (controller) controller.abort();
-    controller = new AbortController();
-    const btn = $("submit-btn");
-
-    if (!silent) { btn.disabled = true; $("submit-label").textContent = "Checking…"; showStatus("loading"); }
-    else if (!$("st-output").hidden) { $("output-body").classList.add("stale"); }
-    else { showStatus("loading"); }
+    setLoading(true);
+    const steps = ['Combining text fields…', 'Vectorising 5,000 features…', 'Encoding metadata signals…', 'Scoring with logistic regression…'];
+    let i = 0; $('scanTxt').textContent = '> ' + steps[0];
+    const tick = setInterval(() => { i = (i + 1) % steps.length; $('scanTxt').textContent = '> ' + steps[i]; }, 650);
 
     try {
-      const res = await fetch("/predict", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload()), signal: controller.signal
-      });
-      const data = await res.json().catch(() => ({}));
-      if (mine !== seq) return;
-      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "The server returned an error (" + res.status + ").");
-      const r = renderResult(data, title);
-      if (save) pushHistory({ form: readForm(), pct: r.pct, state: r.state });
-      if (!silent && window.matchMedia("(max-width: 900px)").matches) {
-        $("result").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      const [res] = await Promise.all([
+        fetch(API + '/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+        new Promise(r => setTimeout(r, 1400))   // minimum duration so the animation reads as intentional
+      ]);
+      if (!res.ok) {
+        let detail = ''; try { const j = await res.json(); detail = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); } catch {}
+        throw new Error(res.status === 422 ? 'The server rejected the input. ' + detail : `Server error (${res.status}). ${detail}`);
       }
+      render(await res.json(), payload);
     } catch (err) {
-      if (err.name === "AbortError" || mine !== seq) return;
-      $("error-msg").textContent = err.message || "Check that the server is running and try again.";
-      showStatus("error");
+      showAlert(err instanceof TypeError
+        ? 'Could not reach the server. Make sure FastAPI is running (uvicorn app:app --reload) and try again.'
+        : err.message);
     } finally {
-      if (mine === seq) { btn.disabled = false; $("submit-label").textContent = "Check this posting"; }
+      clearInterval(tick); setLoading(false);
     }
+  });
+
+  function setLoading(on) {
+    go.disabled = on; go.classList.toggle('loading', on);
+    $('goTxt').textContent = on ? 'Analyzing…' : 'Analyze Job';
+    scan.classList.toggle('show', on);
+    if (on) result.classList.remove('show');
   }
-  form.addEventListener("submit", (e) => { e.preventDefault(); runCheck({ save: true, silent: false }); });
 
-  /* ---------- live mode ---------- */
-  let liveTimer;
-  function scheduleLive() {
-    if (!$("live-toggle").checked) return;
-    clearTimeout(liveTimer);
-    liveTimer = setTimeout(() => runCheck({ save: false, silent: true }), 800);
+  function render(d, p) {
+    const fake = d.prediction === 1;
+    const prob = Math.min(Math.max(d.fraud_probability, 0), 1);
+    const pct = Math.round(prob * 100);
+    const band = prob < .2 ? 'Low risk' : prob < .5 ? 'Moderate risk' : prob < .8 ? 'High risk' : 'Critical risk';
+
+    $('res').className = 'res ' + (fake ? 'fake' : 'real');
+    $('verdict').textContent = (fake ? '⚠ ' : '✓ ') + band;
+    $('vTitle').textContent = fake ? 'Fake Job' : 'Genuine Job';
+    $('vWhy').textContent = fake
+      ? 'This posting shows patterns commonly found in fraudulent listings. Do not share personal or financial details, and never pay a fee to apply.'
+      : 'This posting resembles legitimate listings in our training data. As always, verify the employer through official channels before sharing personal information.';
+
+    const sig = [];
+    sig.push(p.has_company_logo ? ['good', 'Company logo present'] : ['warn', 'No company logo']);
+    sig.push(p.has_questions ? ['good', 'Screening questions'] : ['warn', 'No screening questions']);
+    if (!p.company_profile) sig.push(['warn', 'No company profile']);
+    if (!p.requirements) sig.push(['warn', 'No requirements listed']);
+    if (p.telecommuting) sig.push(['', 'Remote position']);
+    if (p.required_education === 'Unknown' || p.required_education === 'Unspecified') sig.push(['', 'Education unspecified']);
+    $('signals').innerHTML = '';
+    sig.forEach(([c, t]) => { const s = document.createElement('span'); s.className = 'sig ' + c; s.textContent = t; $('signals').appendChild(s); });
+
+    // reset then animate
+    const arc = $('arc'), needle = $('needle'), pctEl = $('pct');
+    arc.style.transition = needle.style.transition = 'none';
+    arc.style.strokeDashoffset = 597; needle.style.left = '0%'; pctEl.textContent = '0%';
+    result.classList.add('show');
+    result.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      arc.style.transition = needle.style.transition = '';
+      arc.style.strokeDashoffset = 597 * (1 - prob);
+      needle.style.left = (prob * 100) + '%';
+      const t0 = performance.now();
+      (function step(t) {
+        const k = Math.min((t - t0) / 1400, 1), e = 1 - Math.pow(1 - k, 3);
+        pctEl.textContent = Math.round(pct * e) + '%';
+        if (k < 1) requestAnimationFrame(step);
+      })(t0);
+    }));
   }
-  $("live-toggle").addEventListener("change", () => {
-    if ($("live-toggle").checked) runCheck({ save: false, silent: true });
-    else { clearTimeout(liveTimer); $("output-body").classList.remove("stale"); }
-  });
-
-  /* ---------- wiring ---------- */
-  function refreshLocal() { updateCounter(); updateMeter(); runScan(); }
-  form.addEventListener("input", () => { clearTitleError(); refreshLocal(); scheduleLive(); });
-  form.addEventListener("change", () => { refreshLocal(); scheduleLive(); });
-  form.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); form.requestSubmit(); }
-  });
-
-  $("clear-btn").addEventListener("click", () => {
-    fillForm({ employment_type: "Unknown", required_experience: "Unknown", required_education: "Unknown" });
-    remoteTouched = false;
-    seq++; if (controller) controller.abort();
-    clearTimeout(liveTimer);
-    $("submit-btn").disabled = false; $("submit-label").textContent = "Check this posting";
-    cancelAnimationFrame(dialRaf); dialVal = 0; drawDial(0, 0); $("pct").textContent = "–";
-    $("dial").classList.add("idle"); $("result").dataset.state = "idle"; lastState = null;
-    $("model").hidden = true;
-    showStatus("empty");
-    (activeTab() === "paste" ? $("paste") : $("title")).focus();
-  });
-
-  document.querySelectorAll("[data-example]").forEach((b) => {
-    b.addEventListener("click", () => {
-      fillForm(EXAMPLES[b.dataset.example]);
-      if ($("live-toggle").checked) scheduleLive(); else showStatus("empty");
-      if (activeTab() === "marked") renderMarked();
-    });
-  });
-
-  drawDial(0, 0); $("pct").textContent = "–";
-  refreshLocal(); renderHistory();
 })();
 </script>
 </body>
